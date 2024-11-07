@@ -1,8 +1,10 @@
+use super::network_model::Network;
+use super::wallet_model::Wallet;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
 use uuid::Uuid;
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct User {
     pub user_uuid: String,
     pub name: String,
@@ -10,88 +12,19 @@ pub struct User {
     pub wallets: Vec<Wallet>,
 }
 
-#[derive(Serialize, Clone, Deserialize)]
-pub struct Wallet {
-    pub wallet_address: String,
-    pub network: Network,
-}
-
-#[derive(Serialize, PartialEq, Clone, Deserialize)]
-pub enum Network {
-    Ethereum,
-    Starknet,
-    Base,
-    Optimism,
-}
-
-impl Network {
-    pub fn as_str(&self) -> Result<String, String> {
-        match self {
-            Network::Ethereum => Ok("Ethereum".to_string()),
-            Network::Starknet => Ok("Starknet".to_string()),
-            Network::Base => Ok("Base".to_string()),
-            Network::Optimism => Ok("Optimism".to_string()),
-        }
-    }
-
-    pub fn from_str(network: String) -> Result<Self, String> {
-        let network = match network.to_lowercase().as_str() {
-            "ethereum" => Network::Ethereum,
-            "starknet" => Network::Starknet,
-            "base" => Network::Base,
-            "optimism" => Network::Optimism,
-            _ => return Err("Invalid network type".to_string()),
-        };
-        Ok(network)
-    }
-}
-
-impl Wallet {
-    pub fn new(wallet_address: String, network: String) -> Result<Self, String> {
-        let network = Network::from_str(network);
-        if let Ok(user_network) = network {
-            Ok(Wallet {
-                wallet_address,
-                network: user_network,
-            })
-        } else {
-            Err("Invalid wallet network type".to_string())
-        }
-    }
-
-    pub fn change_network(&mut self, network: String) -> Result<String, String> {
-        let network = Network::from_str(network);
-        if let Ok(new_network) = network {
-            self.network = new_network;
-            Ok("Network updated successfully".to_string())
-        } else {
-            return Err("Invalid network type".to_string());
-        }
-    }
-}
-
 impl User {
     pub fn new(name: String, email: String, wallets: Vec<Wallet>) -> Result<Self, String> {
         Ok(User {
             user_uuid: Uuid::new_v4().to_string(),
             name,
-            email,
+            email: email.to_lowercase(),
             wallets,
         })
     }
 
-    pub fn add_wallet(
-        &mut self,
-        wallet_address: String,
-        wallet_network: String,
-    ) -> Result<String, String> {
-        let user_wallet = Wallet::new(wallet_address, wallet_network);
-        if let Ok(wallet) = user_wallet {
-            self.wallets.push(wallet);
-            return Ok("Wallet added successfully".to_string());
-        } else {
-            return Err("Invalid wallet network type".to_string());
-        }
+    pub fn add_wallet(&mut self, user_wallet: Wallet) -> Result<User, String> {
+        self.wallets.push(user_wallet);
+        Ok(self.clone())
     }
 
     pub fn get_wallet_by_address(&self, address: &str) -> Result<&Wallet, String> {

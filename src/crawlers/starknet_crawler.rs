@@ -1,4 +1,5 @@
-use crate::models::user_model::{Network, Wallet};
+use crate::models::network_model::Network;
+use crate::models::wallet_model::Wallet;
 use dotenv::dotenv;
 use reqwest::Client;
 use serde_json::json;
@@ -148,7 +149,7 @@ pub fn process_transactions(transactions: String) {
             same_network_wallets.contains(
                 &tx["sender_address"]
                     .as_str()
-                    .expect("tx does not contain a sender")
+                    .unwrap_or("0x000000000000000000000000")
                     .to_string(),
             )
         })
