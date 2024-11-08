@@ -1,7 +1,7 @@
 use mongodb::bson::doc;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, PartialEq, Clone, Deserialize)]
+#[derive(Serialize, PartialEq, Clone, Deserialize, Debug)]
 pub struct NetworkManager {
     pub network_type: Network,
     pub chain_id: String,

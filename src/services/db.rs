@@ -7,7 +7,7 @@ use mongodb::error::Error;
 use mongodb::{
     bson::doc,
     options::IndexOptions,
-    results::{InsertOneResult, UpdateResult},
+    results::{DeleteResult, InsertOneResult, UpdateResult},
     Client, Collection, IndexModel,
 };
 use std::env;
@@ -256,6 +256,67 @@ impl Database {
                 500,
                 format!("{}: {:?}", "Error Fetching network", err),
             )),
+        }
+    }
+
+    pub async fn get_all_networks(&self) -> Result<Vec<NetworkManager>, DatabaseResponse> {
+        let result = self.networks.find(doc! {}).await;
+        match result {
+            Ok(mut cursor) => {
+                let mut networks: Vec<NetworkManager> = Vec::new();
+                while let Some(doc) = cursor.next().await {
+                    match doc {
+                        Ok(network) => networks.push(network),
+                        Err(e) => return Err(DatabaseResponse::new(500, format!("{}", e))),
+                    }
+                }
+                Ok(networks)
+            }
+            Err(e) => Err(DatabaseResponse::new(500, format!("{}", e))),
+        }
+    }
+
+    pub async fn delete_network(
+        &self,
+        network_type: Network,
+    ) -> Result<DeleteResult, DatabaseResponse> {
+        let network_name = try_or_return_string!(network_type.as_str());
+        let result = self
+            .networks
+            .delete_one(doc! {"network_type": network_name})
+            .await;
+        match result {
+            Ok(delete_result) => {
+                if delete_result.deleted_count == 0 {
+                    Err(DatabaseResponse::new(404, "Network not found".to_string()))
+                } else {
+                    Ok(delete_result)
+                }
+            }
+            Err(e) => Err(DatabaseResponse::new(500, format!("{}", e))),
+        }
+    }
+
+    pub async fn update_network(
+        &self,
+        network: NetworkManager,
+    ) -> Result<NetworkManager, DatabaseResponse> {
+        let result = self
+            .networks
+            .replace_one(
+                doc! {"network_type": try_or_return_string!(network.network_type.as_str())},
+                network.clone(),
+            )
+            .await;
+        match result {
+            Ok(update_result) => {
+                if update_result.modified_count == 0 {
+                    Err(DatabaseResponse::new(404, "User not found".to_string()))
+                } else {
+                    Ok(network)
+                }
+            }
+            Err(e) => Err(DatabaseResponse::new(500, format!("{}", e))),
         }
     }
 }

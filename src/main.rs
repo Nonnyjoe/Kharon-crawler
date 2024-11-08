@@ -8,7 +8,9 @@ use actix_web::{
 };
 use crawlers::starknet_crawler::crawl_starknet;
 
-use routes::admin_routes::create_network;
+use routes::admin_routes::{
+    create_network, delete_network, get_all_network, update_network_chain_id,
+};
 use routes::health_route::health_check;
 use routes::user_route::{
     add_wallet, create_user, delete_wallet, get_all_users, get_all_users_via_network, get_profile,
@@ -45,6 +47,9 @@ async fn main() -> std::io::Result<()> {
             .service(get_all_users_via_network)
             .service(update_user_email)
             .service(create_network)
+            .service(update_network_chain_id)
+            .service(get_all_network)
+            .service(delete_network)
     })
     .bind(("127.0.0.1", 80))?
     .run()
