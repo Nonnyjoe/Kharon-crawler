@@ -23,6 +23,9 @@ impl User {
     }
 
     pub fn add_wallet(&mut self, user_wallet: Wallet) -> Result<User, String> {
+        if self.wallets.contains(&user_wallet) {
+            return Err("Wallet already exists in the user's wallets".to_string());
+        }
         self.wallets.push(user_wallet);
         Ok(self.clone())
     }

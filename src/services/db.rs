@@ -18,6 +18,7 @@ pub struct Database {
     networks: Collection<NetworkManager>,
 }
 
+#[derive(Debug)]
 pub struct DatabaseResponse {
     pub error_code: u16,
     pub message: String,
@@ -30,6 +31,15 @@ impl DatabaseResponse {
             message,
         }
     }
+}
+
+macro_rules! try_or_return_string {
+    ($result:expr) => {
+        match $result {
+            Ok(value) => value,
+            Err(e) => return Err(DatabaseResponse::new(500, e.to_string())),
+        }
+    };
 }
 
 impl Database {
@@ -66,60 +76,59 @@ impl Database {
         }
     }
 
-    pub async fn create_network(
-        &self,
-        network: NetworkManager,
-    ) -> Result<InsertOneResult, DatabaseResponse> {
-        let result = self
-            .networks
-            .insert_one(network)
-            .await
-            .ok()
-            .expect("Error creating a network");
-        Ok(result)
-    }
-
     pub async fn change_email(
         &self,
         email: String,
         user_id: String,
     ) -> Result<UpdateResult, DatabaseResponse> {
-        let result = self
-            .users
-            .update_one(
-                doc! {"user_uuid": user_id},
-                doc! {"$set": doc! {"email": email}},
-            )
-            .await
-            .ok()
-            .expect("Error updating user email");
+        let result = try_or_return_string!(
+            self.users
+                .update_one(
+                    doc! {"user_uuid": user_id},
+                    doc! {"$set": doc! {"email": email}},
+                )
+                .await
+        );
         Ok(result)
     }
 
-    pub async fn get_all_users(&self, network: Network) -> Result<Vec<User>, DatabaseResponse> {
-        let mut result = self
-            .users
-            .aggregate(vec![doc! {
-                "$match": {
-                    "networks.wallets":{ "$gte": 0}
+    pub async fn get_all_users(&self) -> Result<Vec<User>, DatabaseResponse> {
+        let mut result = self.users.find(doc! {}).await;
+        match result {
+            Ok(mut cursor) => {
+                let mut users: Vec<User> = Vec::new();
+                while let Some(result) = cursor.next().await {
+                    match result {
+                        Ok(user) => {
+                            users.push(user);
+                        }
+                        Err(err) => return Err(DatabaseResponse::new(500, format!("{}", err))),
+                    }
                 }
-            }])
-            .await
-            .ok()
-            .expect("Error getting all users");
-
-        let mut users: Vec<User> = Vec::new();
-        while let Some(result) = result.next().await {
-            match result {
-                Ok(doc) => {
-                    let user: User =
-                        from_document(doc).expect("Error converting document to users");
-                    users.push(user);
-                }
-                Err(err) => return Err(DatabaseResponse::new(500, format!("{}", err))),
+                Ok(users)
             }
+            Err(err) => Err(DatabaseResponse::new(500, format!("{}", err))),
         }
-        return Ok(users);
+    }
+
+    pub async fn get_all_users_via_network(
+        &self,
+        network: Network,
+    ) -> Result<Vec<User>, DatabaseResponse> {
+        match self.get_all_users().await {
+            Ok(users) => {
+                let mut filtered_users: Vec<User> = Vec::new();
+                for user in users.iter() {
+                    for wallet in user.wallets.iter() {
+                        if wallet.network == network {
+                            filtered_users.push(user.clone());
+                        }
+                    }
+                }
+                Ok(filtered_users)
+            }
+            Err(err) => return Err(err),
+        }
     }
 
     pub async fn get_user_via_email(&self, email: String) -> Result<User, DatabaseResponse> {
@@ -179,6 +188,74 @@ impl Database {
                 }
             }
             Err(e) => Err(DatabaseResponse::new(500, format!("{}", e))),
+        }
+    }
+
+    pub async fn create_network(
+        &self,
+        network: NetworkManager,
+    ) -> Result<InsertOneResult, DatabaseResponse> {
+        match self
+            .get_network_via_name(network.network_type.clone())
+            .await
+        {
+            Ok(_network) => {
+                return Err(DatabaseResponse::new(
+                    500,
+                    "Network already exists".to_string(),
+                ))
+            }
+            Err(err) => {
+                if err.error_code == 404 {
+                    let result = try_or_return_string!(self.networks.insert_one(network).await);
+                    Ok(result)
+                } else {
+                    Err(DatabaseResponse::new(
+                        500,
+                        format!("{} : {:?}", "Error creating network", err),
+                    ))
+                }
+            }
+        }
+    }
+
+    pub async fn get_network_via_name(
+        &self,
+        network: Network,
+    ) -> Result<NetworkManager, DatabaseResponse> {
+        let network_name = try_or_return_string!(network.as_str());
+        let result = self
+            .networks
+            .find_one(doc! {"network_type": network_name})
+            .await;
+        match result {
+            Ok(Some(network)) => Ok(network),
+            Ok(None) => Err(DatabaseResponse::new(
+                404,
+                format!("{}", "network not found",),
+            )),
+            Err(err) => Err(DatabaseResponse::new(
+                500,
+                format!("{} : {:?}", "Error Fetching network", err),
+            )),
+        }
+    }
+
+    pub async fn get_network_via_chain_id(
+        &self,
+        chain_id: String,
+    ) -> Result<NetworkManager, DatabaseResponse> {
+        let result = self.networks.find_one(doc! {"chain_id": &chain_id}).await;
+        match result {
+            Ok(Some(network)) => Ok(network),
+            Ok(None) => Err(DatabaseResponse::new(
+                500,
+                format!("{}", "network not found",),
+            )),
+            Err(err) => Err(DatabaseResponse::new(
+                500,
+                format!("{}: {:?}", "Error Fetching network", err),
+            )),
         }
     }
 }

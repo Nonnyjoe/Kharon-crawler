@@ -8,10 +8,11 @@ use actix_web::{
 };
 use crawlers::starknet_crawler::crawl_starknet;
 
+use routes::admin_routes::create_network;
 use routes::health_route::health_check;
 use routes::user_route::{
-    add_wallet, create_user, delete_wallet, get_profile, get_user_via_email, get_wallets,
-    update_wallets,
+    add_wallet, create_user, delete_wallet, get_all_users, get_all_users_via_network, get_profile,
+    get_user_via_email, get_wallets, update_user_email, update_wallets,
 };
 use services::db::Database;
 use tokio::time::{interval, Duration};
@@ -40,6 +41,10 @@ async fn main() -> std::io::Result<()> {
             .service(get_wallets)
             .service(update_wallets)
             .service(get_user_via_email)
+            .service(get_all_users)
+            .service(get_all_users_via_network)
+            .service(update_user_email)
+            .service(create_network)
     })
     .bind(("127.0.0.1", 80))?
     .run()
