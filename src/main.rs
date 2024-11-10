@@ -25,7 +25,6 @@ use tokio::time::{interval, Duration};
 async fn main() -> std::io::Result<()> {
     std::env::set_var("RUST_LOG", "debug");
     std::env::set_var("RUST_BACKTRACE", "1");
-    // env_logger::init_from_env(env_logger::Env::default().default_filter_or("info"));
     // env_logger::init();
     let db = Database::init().await;
 
