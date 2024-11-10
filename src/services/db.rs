@@ -1,5 +1,6 @@
 use crate::models::network_model::{Network, NetworkManager};
 use crate::models::user_model::User;
+use crate::models::wallet_model::Wallet;
 use dotenv::dotenv;
 use futures_util::stream::StreamExt;
 use mongodb::bson::from_document;
@@ -13,6 +14,7 @@ use mongodb::{
 use std::env;
 use std::result;
 
+#[derive(Debug, Clone)]
 pub struct Database {
     users: Collection<User>,
     networks: Collection<NetworkManager>,
@@ -128,6 +130,32 @@ impl Database {
                 Ok(filtered_users)
             }
             Err(err) => return Err(err),
+        }
+    }
+
+    pub async fn get_all_wallets_via_network(
+        &self,
+        network: Network,
+    ) -> Result<Vec<Wallet>, DatabaseResponse> {
+        let result = self.users.find(doc! {}).await;
+        match result {
+            Ok(mut cursor) => {
+                let mut wallets: Vec<Wallet> = Vec::new();
+                while let Some(result) = cursor.next().await {
+                    match result {
+                        Ok(user) => {
+                            for wallet in user.wallets.iter() {
+                                if wallet.network == network {
+                                    wallets.push(wallet.clone());
+                                }
+                            }
+                        }
+                        Err(e) => return Err(DatabaseResponse::new(500, format!("{}", e))),
+                    }
+                }
+                Ok(wallets)
+            }
+            Err(err) => Err(DatabaseResponse::new(500, format!("{}", err))),
         }
     }
 
@@ -314,6 +342,50 @@ impl Database {
                     Err(DatabaseResponse::new(404, "User not found".to_string()))
                 } else {
                     Ok(network)
+                }
+            }
+            Err(e) => Err(DatabaseResponse::new(500, format!("{}", e))),
+        }
+    }
+
+    pub async fn get_last_scanned_block(&self, network: Network) -> Result<u128, DatabaseResponse> {
+        let network_name = try_or_return_string!(network.as_str());
+        let result = self
+            .networks
+            .find_one(doc! {"network_type": network_name})
+            .await;
+        match result {
+            Ok(Some(network)) => Ok(network.last_scanned_block),
+            Ok(None) => Err(DatabaseResponse::new(
+                404,
+                format!("{}", "network not found",),
+            )),
+            Err(err) => Err(DatabaseResponse::new(
+                500,
+                format!("{}: {:?}", "Error Fetching network", err),
+            )),
+        }
+    }
+
+    pub async fn update_last_scanned_block(
+        &self,
+        network: Network,
+        block_number: u128,
+    ) -> Result<NetworkManager, DatabaseResponse> {
+        let network_name = try_or_return_string!(network.as_str());
+        let result = self
+            .networks
+            .update_one(
+                doc! {"network_type": network_name},
+                doc! {"$set": {"last_scanned_block": format!("{}", block_number)}},
+            )
+            .await;
+        match result {
+            Ok(update_result) => {
+                if update_result.modified_count == 0 {
+                    Err(DatabaseResponse::new(404, "Network not found".to_string()))
+                } else {
+                    self.get_network_via_name(network).await
                 }
             }
             Err(e) => Err(DatabaseResponse::new(500, format!("{}", e))),

@@ -114,6 +114,17 @@ pub async fn get_all_users_via_network(
     return ApiResponse::new(200, format!("{:?}", users));
 }
 
+#[get("/wallets/{network}")]
+pub async fn get_all_wallets_via_network(
+    db: Data<Database>,
+    request: Path<SubmitGetUserViaNetwork>,
+) -> ApiResponse {
+    let network = try_or_return_string!(Network::from_str(request.into_inner().network));
+
+    let wallets: Vec<Wallet> = try_or_return!(db.get_all_wallets_via_network(network).await);
+    return ApiResponse::new(200, format!("{:?}", wallets));
+}
+
 #[get("/user/email")]
 pub async fn get_user_via_email(
     db: Data<Database>,

@@ -29,6 +29,17 @@ pub struct SubmitDeleteNetwork {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct SubmitGetLastBlock {
+    pub network_type: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct SubmitSetLastBlock {
+    pub network_type: String,
+    pub last_scanned_block: u128,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SubmitUpdateNetwork {
     pub old_chain_id: String,
     pub new_chain_id: String,
@@ -92,6 +103,36 @@ pub async fn delete_network(db: Data<Database>, request: Json<SubmitDeleteNetwor
     let network = try_or_return_string!(Network::from_str(network_type));
 
     let response_network = try_or_return!(db.delete_network(network).await);
+
+    ApiResponse::new(200, format!("{:?}", response_network))
+}
+
+#[get("admin/network/last_scanned_block")]
+pub async fn get_last_scanned_block(
+    db: Data<Database>,
+    request: Json<SubmitGetLastBlock>,
+) -> ApiResponse {
+    let network_type = request.network_type.clone();
+
+    let network = try_or_return_string!(Network::from_str(network_type));
+
+    let response_block_number = try_or_return!(db.get_last_scanned_block(network).await);
+
+    ApiResponse::new(200, format!("{}", response_block_number))
+}
+
+#[patch("admin/network/last_scanned_block")]
+pub async fn set_last_scanned_block(
+    db: Data<Database>,
+    request: Json<SubmitSetLastBlock>,
+) -> ApiResponse {
+    let network_type = request.network_type.clone();
+    let block_number: u128 = request.last_scanned_block;
+
+    let network = try_or_return_string!(Network::from_str(network_type));
+
+    let response_network =
+        try_or_return!(db.update_last_scanned_block(network, block_number).await);
 
     ApiResponse::new(200, format!("{:?}", response_network))
 }
