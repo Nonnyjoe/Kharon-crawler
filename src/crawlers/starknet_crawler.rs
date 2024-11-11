@@ -1,6 +1,7 @@
 use crate::models::network_model::Network;
 use crate::models::wallet_model::Wallet;
 use crate::services::db::Database;
+use crate::services::mailer::process_transactions_to_mail;
 use dotenv::dotenv;
 use reqwest::Client;
 use serde_json::json;
@@ -155,7 +156,10 @@ pub async fn process_transactions(transactions: String, db: Database) {
 
     let transactions_json: serde_json::Value = serde_json::from_str(&transactions).unwrap();
 
-    let same_network_wallets = filter_networks(wallets, BKNETWORK);
+    let same_network_wallets: Vec<String> = filter_networks(wallets, BKNETWORK)
+        .into_iter()
+        .map(|x| x.to_lowercase())
+        .collect();
 
     // print_addresses(transactions_json.clone(), same_network_wallets.clone());
 
@@ -164,12 +168,12 @@ pub async fn process_transactions(transactions: String, db: Database) {
         .expect("transactions is not json")
         .into_iter()
         .filter(|tx| {
-            same_network_wallets.contains(&format!(
-                "0x0{}",
+            same_network_wallets.contains(&build_address(
                 tx["sender_address"]
                     .as_str()
-                    .unwrap_or("0x000000000000000000000000")[2..]
+                    .unwrap_or("0x0000000000000000000000")
                     .to_string()
+                    .to_lowercase(),
             ))
         })
         .collect();
@@ -179,6 +183,7 @@ pub async fn process_transactions(transactions: String, db: Database) {
         return;
     } else {
         println!("LOG:: {}, Relevant transactions found:", relevant_tx.len());
+        process_transactions_to_mail(relevant_tx, BKNETWORK, db).await;
     }
 }
 
@@ -198,12 +203,11 @@ pub fn print_addresses(transactions_json: serde_json::Value, same_network_wallet
         .expect("transactions_json is not an array")
         .iter()
         .map(|tx| {
-            format!(
-                "0x0{}",
+            build_address(
                 tx["sender_address"]
                     .as_str()
-                    .unwrap_or("0x000000000000000000000000")[2..]
-                    .to_string()
+                    .unwrap_or("0x0000000000000000000000")
+                    .to_string(),
             )
         })
         .collect();
@@ -213,6 +217,20 @@ pub fn print_addresses(transactions_json: serde_json::Value, same_network_wallet
         transaction_senders
     );
     println!("ADDRESSES IN DATABASE: {:?}", same_network_wallets);
+}
+
+pub fn build_address(address: String) -> String {
+    let mut address_parts: String = address.split_at(2).1.to_string();
+    // println!("ADDRESS: {:?}", address_parts);
+    // println!("{}", address_parts.len());
+    let address_len_diff = 64 as usize - address_parts.len();
+
+    for _ in 0..address_len_diff {
+        address_parts.insert(0, '0');
+    }
+
+    let final_address = format!("0x{}", address_parts);
+    return final_address;
 }
 
 pub async fn check_and_handle_skipped_bocks(
@@ -266,3 +284,6 @@ pub async fn check_and_handle_skipped_bocks(
         Ok(())
     }
 }
+
+// 0x056c4315aeb9253549dccde747faf17d682e3b46e4b33a1e2dec6fa0f01481c
+// 0x0785088ef651fa463df0f597d7e0ad9421b0a0303315015d63d3a3f47748a5c9

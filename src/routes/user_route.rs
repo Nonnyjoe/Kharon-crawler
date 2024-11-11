@@ -43,6 +43,11 @@ pub struct SubmitDeleteWallet {
 }
 
 #[derive(Serialize, Clone, Deserialize)]
+pub struct SubmitGetUserViaWallet {
+    pub wallet_address: String,
+}
+
+#[derive(Serialize, Clone, Deserialize)]
 pub struct SubmitGetProfile {
     pub user_id: String,
 }
@@ -204,4 +209,15 @@ pub async fn get_wallets(db: Data<Database>, request: Json<SubmitGetProfile>) ->
     let user: User = try_or_return!(db.get_user_via_id(user_id.clone()).await);
     let user_wallets = user.wallets;
     return ApiResponse::new(200, format!("{:?}", user_wallets));
+}
+
+#[get("/users/wallet")]
+pub async fn get_users_via_wallet(
+    db: Data<Database>,
+    request: Json<SubmitGetUserViaWallet>,
+) -> ApiResponse {
+    let wallets_address = request.wallet_address.clone();
+    println!("finding wallets users...");
+    let users: Vec<User> = try_or_return!(db.find_users_with_wallet_address(wallets_address).await);
+    return ApiResponse::new(200, format!("{:?}", users));
 }

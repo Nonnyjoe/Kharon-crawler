@@ -180,6 +180,38 @@ impl Database {
         }
     }
 
+    pub async fn find_users_with_wallet_address(
+        &self,
+        wallet_address: String,
+    ) -> Result<Vec<User>, DatabaseResponse> {
+        let filter = doc! {
+            "wallets": {
+                "$elemMatch": {
+                    "wallet_address": {
+                        "$regex": wallet_address,
+                        "$options": "i"
+                    }
+                }
+            }
+        };
+
+        let result = self.users.find(filter).await;
+
+        match result {
+            Ok(mut cursor) => {
+                let mut users: Vec<User> = Vec::new();
+                while let Some(doc) = cursor.next().await {
+                    match doc {
+                        Ok(user) => users.push(user),
+                        Err(e) => return Err(DatabaseResponse::new(500, format!("{}", e))),
+                    }
+                }
+                Ok(users)
+            }
+            Err(e) => return Err(DatabaseResponse::new(500, format!("{}", e))),
+        }
+    }
+
     pub async fn get_user_via_id(&self, id: String) -> Result<User, DatabaseResponse> {
         let result = self.users.find(doc! {"user_uuid": id}).await;
         match result {

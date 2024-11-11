@@ -15,13 +15,7 @@ impl ApiResponse {
             response_code: StatusCode::from_u16(status_code).unwrap(),
         }
     }
-    // pub fn new_from_macro(response: DatabaseResponse) -> Self {
-    //     ApiResponse {
-    //         status_code: response.error_code,
-    //         body: response.message,
-    //         response_code: StatusCode::from_u16(response.error_code).unwrap(),
-    //     }
-    // }
+
     pub fn new_from_macro(response: String) -> Self {
         println!("{response}");
         ApiResponse {
