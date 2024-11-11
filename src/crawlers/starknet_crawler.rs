@@ -161,7 +161,7 @@ pub async fn process_transactions(transactions: String, db: Database) {
         .map(|x| x.to_lowercase())
         .collect();
 
-    // print_addresses(transactions_json.clone(), same_network_wallets.clone());
+    // _print_addresses(transactions_json.clone(), same_network_wallets.clone());
 
     let relevant_tx: Vec<&serde_json::Value> = transactions_json
         .as_array()
@@ -197,7 +197,7 @@ pub fn filter_networks(wallets: Vec<Wallet>, network: Network) -> Vec<String> {
     same_network_wallets
 }
 
-pub fn print_addresses(transactions_json: serde_json::Value, same_network_wallets: Vec<String>) {
+pub fn _print_addresses(transactions_json: serde_json::Value, same_network_wallets: Vec<String>) {
     let transaction_senders: Vec<String> = transactions_json
         .as_array()
         .expect("transactions_json is not an array")
