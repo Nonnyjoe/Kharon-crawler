@@ -29,11 +29,6 @@ pub struct SubmitDeleteNetwork {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct SubmitGetLastBlock {
-    pub network_type: String,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SubmitSetLastBlock {
     pub network_type: String,
     pub last_scanned_block: u128,
@@ -107,12 +102,9 @@ pub async fn delete_network(db: Data<Database>, request: Json<SubmitDeleteNetwor
     ApiResponse::new(200, format!("{:?}", response_network))
 }
 
-#[get("admin/network/last_scanned_block")]
-pub async fn get_last_scanned_block(
-    db: Data<Database>,
-    request: Json<SubmitGetLastBlock>,
-) -> ApiResponse {
-    let network_type = request.network_type.clone();
+#[get("admin/network/{network_type}/last_scanned_block")]
+pub async fn get_last_scanned_block(db: Data<Database>, path: Path<String>) -> ApiResponse {
+    let network_type = path.into_inner();
 
     let network = try_or_return_string!(Network::from_str(network_type));
 

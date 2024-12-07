@@ -96,9 +96,10 @@ pub async fn create_user(db: Data<Database>, request: Json<SubmitCreateUser>) ->
     }
 }
 
-#[get("/user")]
-pub async fn get_profile(db: Data<Database>, request: Json<SubmitGetProfile>) -> ApiResponse {
-    let user: User = try_or_return!(db.get_user_via_id(request.user_id.clone()).await);
+#[get("/user/by-id/{user_id}")]
+pub async fn get_profile(db: Data<Database>, path: Path<String>) -> ApiResponse {
+    let user_id = path.into_inner();
+    let user: User = try_or_return!(db.get_user_via_id(user_id.clone()).await);
     ApiResponse::new(200, format!("{:?}", user))
 }
 
@@ -130,12 +131,12 @@ pub async fn get_all_wallets_via_network(
     return ApiResponse::new(200, format!("{:?}", wallets));
 }
 
-#[get("/user/email")]
+#[get("/user/by-email/{email}")]
 pub async fn get_user_via_email(
     db: Data<Database>,
-    request: Json<SubmitGetProfileViaEmail>,
+    request: Path<SubmitGetProfileViaEmail>,
 ) -> ApiResponse {
-    let email_address = request.email.clone();
+    let email_address = request.into_inner().email;
 
     let user: User = try_or_return!(db.get_user_via_email(email_address).await);
     return ApiResponse::new(200, format!("{:?}", user));
@@ -202,21 +203,21 @@ pub async fn delete_wallet(db: Data<Database>, request: Json<SubmitDeleteWallet>
     );
 }
 
-#[get("/user/wallets")]
-pub async fn get_wallets(db: Data<Database>, request: Json<SubmitGetProfile>) -> ApiResponse {
-    let user_id = request.user_id.clone();
+#[get("/user/wallets/by-id/{user_id}")]
+pub async fn get_wallets(db: Data<Database>, request: Path<SubmitGetProfile>) -> ApiResponse {
+    let user_id = request.into_inner().user_id;
 
     let user: User = try_or_return!(db.get_user_via_id(user_id.clone()).await);
     let user_wallets = user.wallets;
     return ApiResponse::new(200, format!("{:?}", user_wallets));
 }
 
-#[get("/users/wallet")]
+#[get("/users/by-wallet/{wallet_address}")]
 pub async fn get_users_via_wallet(
     db: Data<Database>,
-    request: Json<SubmitGetUserViaWallet>,
+    request: Path<SubmitGetUserViaWallet>,
 ) -> ApiResponse {
-    let wallets_address = request.wallet_address.clone();
+    let wallets_address = request.into_inner().wallet_address;
     println!("finding wallets users...");
     let users: Vec<User> = try_or_return!(db.find_users_with_wallet_address(wallets_address).await);
     return ApiResponse::new(200, format!("{:?}", users));

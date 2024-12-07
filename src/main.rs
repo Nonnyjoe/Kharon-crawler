@@ -8,6 +8,7 @@ use actix_web::{
     get, http, middleware::Logger, web, web::Data, App, HttpResponse, HttpServer, Responder,
 };
 use crawlers::starknet_crawler::crawl_starknet;
+use std::env;
 
 use routes::admin_routes::{
     create_network, delete_network, get_all_network, get_last_scanned_block,
@@ -28,6 +29,11 @@ async fn main() -> std::io::Result<()> {
     std::env::set_var("RUST_BACKTRACE", "1");
     // env_logger::init();
     let db = Database::init().await;
+    let server_url = env::var("SERVER_URL").unwrap_or_else(|_| String::from("127.0.0.1"));
+    let port: u16 = env::var("PORT")
+        .unwrap_or_else(|_| String::from("80"))
+        .parse()
+        .expect("Not a valid port");
 
     tokio::spawn(crawl_starknet(db.clone(), 60));
     let db_data = Data::new(db);
@@ -67,7 +73,7 @@ async fn main() -> std::io::Result<()> {
             .service(get_users_via_wallet)
             .service(get_all_users_via_network)
     })
-    .bind(("127.0.0.1", 80))?
+    .bind((server_url, port))?
     .run()
     .await
 }
