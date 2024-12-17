@@ -27,7 +27,7 @@ use tokio::time::{interval, Duration};
 async fn main() -> std::io::Result<()> {
     std::env::set_var("RUST_LOG", "debug");
     std::env::set_var("RUST_BACKTRACE", "1");
-    // env_logger::init();
+    env_logger::init();
     let db = Database::init().await;
     let server_url = env::var("SERVER_URL").unwrap_or_else(|_| String::from("127.0.0.1"));
     let port: u16 = env::var("PORT")
@@ -38,10 +38,10 @@ async fn main() -> std::io::Result<()> {
     tokio::spawn(crawl_starknet(db.clone(), 60));
     let db_data = Data::new(db);
     HttpServer::new(move || {
-        // let logger = Logger::default();
+        let logger = Logger::default();
         App::new()
             .app_data(db_data.clone())
-            // .wrap(logger)
+            .wrap(logger)
             .wrap(
                 Cors::default()
                     // .allowed_origin("http://localhost:3000") // Allow requests from your frontend
