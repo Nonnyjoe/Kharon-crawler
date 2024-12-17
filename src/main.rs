@@ -46,7 +46,7 @@ async fn main() -> std::io::Result<()> {
                 Cors::default()
                     // .allowed_origin("http://localhost:3000") // Allow requests from your frontend
                     .allow_any_origin()
-                    .allowed_methods(vec!["GET", "POST"])
+                    .allowed_methods(vec!["GET", "POST", "PATCH", "DELETE"])
                     .allowed_headers(vec![
                         http::header::CONTENT_TYPE,
                         http::header::AUTHORIZATION,
